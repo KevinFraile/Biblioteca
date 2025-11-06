@@ -1,75 +1,137 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+// CORRECCIÓN: Imports de UI actualizados
 import { Button } from '../ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { Check, X, Eye, RefreshCw } from 'lucide-react';
+import { Eye, RefreshCw } from 'lucide-react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
-import { prestamos, libros, usuarios } from '../../data/mockData';
-import { Prestamo } from '../../types';
+import { Label } from '../ui/label';
+import { toast } from 'sonner';
+
+// Definimos la URL de la API
+const API_URL = 'http://localhost:3001';
 
 interface PrestamosViewProps {
   role: 'usuario' | 'bibliotecario';
-  userId?: string;
+  userId?: string; // Nota: La API GET /prestamos no devuelve Id_Usuario, por lo que este filtro no se puede aplicar actualmente.
 }
 
+// Función para obtener el estado derivado del préstamo
+const getEstado = (prestamo: any) => {
+  const hoy = new Date();
+  const fechaEntrega = new Date(prestamo.Fecha_Entrega_Prestamo);
+
+  if (prestamo.Fecha_Devolucion) {
+    return { texto: 'Devuelto', variant: 'outline' as const };
+  }
+  if (fechaEntrega < hoy) {
+    return { texto: 'Vencido', variant: 'destructive' as const };
+  }
+  return { texto: 'Activo', variant: 'default' as const };
+};
+
 export function PrestamosView({ role, userId }: PrestamosViewProps) {
-  const [selectedPrestamo, setSelectedPrestamo] = useState<Prestamo | null>(null);
+  const [prestamos, setPrestamos] = useState<any[]>([]);
+  const [selectedPrestamo, setSelectedPrestamo] = useState<any | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmReturnOpen, setConfirmReturnOpen] = useState(false);
+  const [idToReturn, setIdToReturn] = useState<string | null>(null);
 
-  const userPrestamos = role === 'usuario' 
-    ? prestamos.filter(p => p.usuario_id === userId)
-    : prestamos;
-
-  const pendientes = userPrestamos.filter(p => p.estado === 'pendiente');
-  const activos = userPrestamos.filter(p => p.estado === 'activo');
-  const historial = userPrestamos.filter(p => p.estado === 'devuelto' || p.estado === 'rechazado');
-
-  const handleApprove = (id: string) => {
-    console.log('Approving prestamo:', id);
-  };
-
-  const handleReject = (id: string) => {
-    if (confirm('¿Está seguro de rechazar esta solicitud?')) {
-      console.log('Rejecting prestamo:', id);
+  // --- Carga de Datos ---
+  const fetchPrestamos = async () => {
+    try {
+      const response = await fetch(`${API_URL}/prestamos`);
+      if (!response.ok) {
+        throw new Error('No se pudieron cargar los préstamos');
+      }
+      const data = await response.json();
+      setPrestamos(data);
+    } catch (error: any) {
+      toast.error(error.message);
     }
   };
 
-  const handleReturn = (id: string) => {
-    if (confirm('¿Confirmar devolución del libro?')) {
-      console.log('Returning prestamo:', id);
+  useEffect(() => {
+    fetchPrestamos();
+  }, []);
+
+  // --- Lógica de Acciones ---
+
+  // Abrir diálogo de confirmación para devolver
+  const handleOpenReturnConfirm = (id: string) => {
+    setIdToReturn(id);
+    setConfirmReturnOpen(true);
+  };
+
+  // Confirmar y ejecutar devolución
+  const handleConfirmReturn = async () => {
+    if (!idToReturn) return;
+
+    const fechaDevolucion = new Date().toISOString().split('T')[0]; // Formato YYYY-MM-DD
+
+    try {
+      const response = await fetch(`${API_URL}/prestamos/${idToReturn}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ Fecha_Devolucion: fechaDevolucion }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Error al actualizar el préstamo');
+      }
+      
+      toast.success('Libro devuelto exitosamente');
+      fetchPrestamos(); // Recargar la lista
+      
+    } catch (error: any) {
+      toast.error(error.message);
+    } finally {
+      setConfirmReturnOpen(false);
+      setIdToReturn(null);
     }
   };
 
-  const handleViewDetails = (prestamo: Prestamo) => {
+  // Ver detalles
+  const handleViewDetails = (prestamo: any) => {
     setSelectedPrestamo(prestamo);
     setDialogOpen(true);
   };
 
-  const PrestamoRow = ({ prestamo }: { prestamo: Prestamo }) => {
-    const libro = libros.find(l => l.id === prestamo.libro_id);
-    const usuario = usuarios.find(u => u.id === prestamo.usuario_id);
+  // --- Filtrado de Datos ---
+  // Nota: El filtro por userId no es posible porque la API GET /prestamos no devuelve el Id_Usuario en su respuesta.
+  // const userPrestamos = role === 'usuario' 
+  //   ? prestamos.filter(p => p.Id_Usuario === userId) // Esto no funcionará con la API actual
+  //   : prestamos;
+  
+  // Mostramos todos los préstamos por ahora
+  const userPrestamos = prestamos;
+
+  const activos = userPrestamos.filter(p => p.Fecha_Devolucion === null);
+  const historial = userPrestamos.filter(p => p.Fecha_Devolucion !== null);
+
+  // --- Componente de Fila ---
+  const PrestamoRow = ({ prestamo }: { prestamo: any }) => {
+    const estado = getEstado(prestamo);
+    const nombreUsuario = `${prestamo.Prim_Nom_Usuario} ${prestamo.Prim_Apelli_Usuario}`;
 
     return (
       <TableRow>
         {role === 'bibliotecario' && (
-          <TableCell>{usuario?.nombre}</TableCell>
+          <TableCell>{nombreUsuario}</TableCell>
         )}
-        <TableCell>{libro?.titulo}</TableCell>
-        <TableCell>{prestamo.fecha_prestamo}</TableCell>
-        <TableCell>{prestamo.fecha_devolucion_esperada}</TableCell>
-        {prestamo.fecha_devolucion_real && (
-          <TableCell>{prestamo.fecha_devolucion_real}</TableCell>
+        <TableCell>{prestamo.Nombre_Libro}</TableCell>
+        <TableCell>{new Date(prestamo.Fecha_Prestamo).toLocaleDateString()}</TableCell>
+        <TableCell>{new Date(prestamo.Fecha_Entrega_Prestamo).toLocaleDateString()}</TableCell>
+        {/* Columna extra para historial */}
+        {historial.includes(prestamo) && (
+          <TableCell>{new Date(prestamo.Fecha_Devolucion).toLocaleDateString()}</TableCell>
         )}
         <TableCell>
-          <Badge variant={
-            prestamo.estado === 'activo' ? 'default' :
-            prestamo.estado === 'pendiente' ? 'secondary' :
-            prestamo.estado === 'devuelto' ? 'outline' :
-            'destructive'
-          }>
-            {prestamo.estado.charAt(0).toUpperCase() + prestamo.estado.slice(1)}
+          <Badge variant={estado.variant}>
+            {estado.texto}
           </Badge>
         </TableCell>
         <TableCell>
@@ -77,18 +139,14 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
             <Button variant="outline" size="sm" onClick={() => handleViewDetails(prestamo)}>
               <Eye className="h-4 w-4" />
             </Button>
-            {role === 'bibliotecario' && prestamo.estado === 'pendiente' && (
-              <>
-                <Button size="sm" onClick={() => handleApprove(prestamo.id)}>
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button variant="destructive" size="sm" onClick={() => handleReject(prestamo.id)}>
-                  <X className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-            {prestamo.estado === 'activo' && (
-              <Button variant="outline" size="sm" onClick={() => handleReturn(prestamo.id)}>
+            {/* Solo mostrar botón de devolver si está activo */}
+            {prestamo.Fecha_Devolucion === null && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => handleOpenReturnConfirm(prestamo.Id_Prestamo)}
+                title={role === 'usuario' ? 'Registrar devolución' : 'Confirmar devolución'}
+              >
                 <RefreshCw className="h-4 w-4 mr-1" />
                 Devolver
               </Button>
@@ -114,54 +172,14 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
 
       <Tabs defaultValue="activos">
         <TabsList>
-          {role === 'bibliotecario' && (
-            <TabsTrigger value="pendientes">
-              Pendientes ({pendientes.length})
-            </TabsTrigger>
-          )}
+          {/* La API no soporta "pendientes", se elimina la pestaña */}
           <TabsTrigger value="activos">
             Activos ({activos.length})
           </TabsTrigger>
-          {role === 'usuario' && (
-            <TabsTrigger value="pendientes">
-              Pendientes ({pendientes.length})
-            </TabsTrigger>
-          )}
           <TabsTrigger value="historial">
             Historial ({historial.length})
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="pendientes" className="mt-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Solicitudes Pendientes</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {pendientes.length > 0 ? (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {role === 'bibliotecario' && <TableHead>Usuario</TableHead>}
-                      <TableHead>Libro</TableHead>
-                      <TableHead>Fecha Solicitud</TableHead>
-                      <TableHead>Devolución Esperada</TableHead>
-                      <TableHead>Estado</TableHead>
-                      <TableHead>Acciones</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {pendientes.map(prestamo => (
-                      <PrestamoRow key={prestamo.id} prestamo={prestamo} />
-                    ))}
-                  </TableBody>
-                </Table>
-              ) : (
-                <p className="text-gray-500 text-center py-8">No hay solicitudes pendientes</p>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
 
         <TabsContent value="activos" className="mt-4">
           <Card>
@@ -176,14 +194,14 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
                       {role === 'bibliotecario' && <TableHead>Usuario</TableHead>}
                       <TableHead>Libro</TableHead>
                       <TableHead>Fecha Préstamo</TableHead>
-                      <TableHead>Devolución Esperada</TableHead>
+                      <TableHead>Fecha Límite</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Acciones</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {activos.map(prestamo => (
-                      <PrestamoRow key={prestamo.id} prestamo={prestamo} />
+                      <PrestamoRow key={prestamo.Id_Prestamo} prestamo={prestamo} />
                     ))}
                   </TableBody>
                 </Table>
@@ -207,7 +225,7 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
                       {role === 'bibliotecario' && <TableHead>Usuario</TableHead>}
                       <TableHead>Libro</TableHead>
                       <TableHead>Fecha Préstamo</TableHead>
-                      <TableHead>Devolución Esperada</TableHead>
+                      <TableHead>Fecha Límite</TableHead>
                       <TableHead>Devolución Real</TableHead>
                       <TableHead>Estado</TableHead>
                       <TableHead>Acciones</TableHead>
@@ -215,7 +233,7 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
                   </TableHeader>
                   <TableBody>
                     {historial.map(prestamo => (
-                      <PrestamoRow key={prestamo.id} prestamo={prestamo} />
+                      <PrestamoRow key={prestamo.Id_Prestamo} prestamo={prestamo} />
                     ))}
                   </TableBody>
                 </Table>
@@ -238,38 +256,35 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
             <div className="space-y-4">
               <div>
                 <Label className="text-sm text-gray-600">Libro</Label>
-                <p>{libros.find(l => l.id === selectedPrestamo.libro_id)?.titulo}</p>
+                <p>{selectedPrestamo.Nombre_Libro}</p>
               </div>
-              {role === 'bibliotecario' && (
-                <div>
-                  <Label className="text-sm text-gray-600">Usuario</Label>
-                  <p>{usuarios.find(u => u.id === selectedPrestamo.usuario_id)?.nombre}</p>
-                </div>
-              )}
+              <div>
+                <Label className="text-sm text-gray-600">Usuario</Label>
+                <p>{`${selectedPrestamo.Prim_Nom_Usuario} ${selectedPrestamo.Prim_Apelli_Usuario}`}</p>
+              </div>
+              <div>
+                <Label className="text-sm text-gray-600">Bibliotecario</Label>
+                <p>{selectedPrestamo.Prim_Nom_Biblio || 'No asignado'}</p>
+              </div>
               <div>
                 <Label className="text-sm text-gray-600">Fecha de Préstamo</Label>
-                <p>{selectedPrestamo.fecha_prestamo}</p>
+                <p>{new Date(selectedPrestamo.Fecha_Prestamo).toLocaleDateString()}</p>
               </div>
               <div>
                 <Label className="text-sm text-gray-600">Fecha de Devolución Esperada</Label>
-                <p>{selectedPrestamo.fecha_devolucion_esperada}</p>
+                <p>{new Date(selectedPrestamo.Fecha_Entrega_Prestamo).toLocaleDateString()}</p>
               </div>
-              {selectedPrestamo.fecha_devolucion_real && (
+              {selectedPrestamo.Fecha_Devolucion && (
                 <div>
                   <Label className="text-sm text-gray-600">Fecha de Devolución Real</Label>
-                  <p>{selectedPrestamo.fecha_devolucion_real}</p>
+                  <p>{new Date(selectedPrestamo.Fecha_Devolucion).toLocaleDateString()}</p>
                 </div>
               )}
               <div>
                 <Label className="text-sm text-gray-600">Estado</Label>
                 <div className="mt-1">
-                  <Badge variant={
-                    selectedPrestamo.estado === 'activo' ? 'default' :
-                    selectedPrestamo.estado === 'pendiente' ? 'secondary' :
-                    selectedPrestamo.estado === 'devuelto' ? 'outline' :
-                    'destructive'
-                  }>
-                    {selectedPrestamo.estado.charAt(0).toUpperCase() + selectedPrestamo.estado.slice(1)}
+                  <Badge variant={getEstado(selectedPrestamo).variant}>
+                    {getEstado(selectedPrestamo).texto}
                   </Badge>
                 </div>
               </div>
@@ -280,10 +295,26 @@ export function PrestamosView({ role, userId }: PrestamosViewProps) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Confirm Return Dialog */}
+      <Dialog open={confirmReturnOpen} onOpenChange={setConfirmReturnOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Confirmar devolución?</DialogTitle>
+            <DialogDescription>
+              Esta acción registrará la devolución del libro. ¿Desea continuar?
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmReturnOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleConfirmReturn}>
+              Confirmar Devolución
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
-}
-
-function Label({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <label className={className}>{children}</label>;
 }

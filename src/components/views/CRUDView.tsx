@@ -1,8 +1,9 @@
 import { useState } from 'react';
+// CORRECCIÓN: Se han actualizado las rutas de importación para usar el alias de ruta estándar
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Card, CardContent, CardHeader } from '../ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Plus, Edit, Trash2, Search } from 'lucide-react';
@@ -13,6 +14,7 @@ interface CRUDViewProps {
   data: any[];
   columns: { key: string; label: string }[];
   formFields: { key: string; label: string; type?: string }[];
+  idKey: string; // Clave primaria (ej: Id_Autor, Id_Editorial)
   onAdd?: (data: any) => void;
   onEdit?: (id: string, data: any) => void;
   onDelete?: (id: string) => void;
@@ -24,12 +26,15 @@ export function CRUDView({
   data,
   columns,
   formFields,
+  idKey, // Recibimos la clave primaria
   onAdd,
   onEdit,
   onDelete,
 }: CRUDViewProps) {
   const [searchTerm, setSearchTerm] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false); // Estado para el diálogo de confirmación
+  const [idToDelete, setIdToDelete] = useState<string | null>(null); // ID a eliminar
   const [formMode, setFormMode] = useState<'add' | 'edit'>('add');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formData, setFormData] = useState<any>({});
@@ -42,7 +47,7 @@ export function CRUDView({
   const handleOpenDialog = (mode: 'add' | 'edit', item?: any) => {
     setFormMode(mode);
     if (item) {
-      setSelectedId(item.id);
+      setSelectedId(item[idKey]); // Usamos idKey
       setFormData(item);
     } else {
       setSelectedId(null);
@@ -56,18 +61,40 @@ export function CRUDView({
   };
 
   const handleSave = () => {
+    // Filtramos los campos vacíos que no sean '0' o 'false'
+    const cleanFormData = { ...formData };
+    formFields.forEach(field => {
+      // Convertir números
+      if (field.type === 'number') {
+        cleanFormData[field.key] = parseFloat(cleanFormData[field.key]);
+      }
+      // Manejar campos opcionales (ej: Seg_Nom_Usuario)
+      if (cleanFormData[field.key] === '') {
+        cleanFormData[field.key] = null;
+      }
+    });
+
     if (formMode === 'add') {
-      onAdd?.(formData);
+      onAdd?.(cleanFormData);
     } else if (selectedId) {
-      onEdit?.(selectedId, formData);
+      onEdit?.(selectedId, cleanFormData);
     }
     setDialogOpen(false);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('¿Está seguro de eliminar este registro?')) {
-      onDelete?.(id);
+  // Abre el modal de confirmación
+  const handleOpenDeleteConfirm = (id: string) => {
+    setIdToDelete(id);
+    setConfirmDeleteOpen(true);
+  };
+
+  // Ejecuta la eliminación
+  const handleConfirmDelete = () => {
+    if (idToDelete) {
+      onDelete?.(idToDelete);
     }
+    setConfirmDeleteOpen(false);
+    setIdToDelete(null);
   };
 
   return (
@@ -107,7 +134,7 @@ export function CRUDView({
             </TableHeader>
             <TableBody>
               {filteredData.map(item => (
-                <TableRow key={item.id}>
+                <TableRow key={item[idKey]}> {/* Usamos idKey */}
                   {columns.map(col => (
                     <TableCell key={col.key}>{item[col.key]}</TableCell>
                   ))}
@@ -123,7 +150,7 @@ export function CRUDView({
                       <Button
                         variant="outline"
                         size="sm"
-                        onClick={() => handleDelete(item.id)}
+                        onClick={() => handleOpenDeleteConfirm(item[idKey])} // Usamos idKey
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -139,6 +166,7 @@ export function CRUDView({
         </CardContent>
       </Card>
 
+      {/* Diálogo para Agregar/Editar */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
@@ -168,6 +196,26 @@ export function CRUDView({
               Cancelar
             </Button>
             <Button onClick={handleSave}>Guardar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de Confirmación de Eliminación */}
+      <Dialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>¿Está seguro de eliminar este registro?</DialogTitle>
+            <DialogDescription>
+              Esta acción no se puede deshacer. Esto eliminará permanentemente el registro.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmDeleteOpen(false)}>
+              Cancelar
+            </Button>
+            <Button variant="destructive" onClick={handleConfirmDelete}>
+              Eliminar
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

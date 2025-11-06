@@ -49,8 +49,8 @@ export function DashboardLayout({
         { id: 'generos', label: 'Géneros', icon: FileText },
         { id: 'usuarios', label: 'Usuarios', icon: Users },
         { id: 'prestamos', label: 'Préstamos', icon: FileText },
-        { id: 'consultas', label: 'Consultas', icon: BarChart3 },
-        { id: 'perfil', label: 'Perfil', icon: User },
+        // { id: 'consultas', label: 'Consultas', icon: BarChart3 },
+        // { id: 'perfil', label: 'Perfil', icon: User },
       ];
 
   return (

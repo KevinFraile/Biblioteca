@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { LoginScreen } from './components/LoginScreen';
 import { RegisterScreen } from './components/RegisterScreen';
 import { DashboardLayout } from './components/DashboardLayout';
@@ -10,10 +10,97 @@ import { CRUDView } from './components/views/CRUDView';
 import { ConsultasView } from './components/views/ConsultasView';
 import { PerfilView } from './components/views/PerfilView';
 import { UserRole, User } from './types';
-import { usuarios, autores, editoriales, categorias, generos } from './data/mockData';
-import { Toaster, toast } from 'sonner@2.0.3';
+// Dejamos 'usuarios' para el mock login, pero quitamos los otros datos mock
+import { usuarios } from './data/mockData'; 
+import { Toaster, toast } from 'sonner';
+
 
 type AppView = 'login' | 'register' | 'dashboard';
+
+// Definimos la URL de la API
+const API_URL = 'http://localhost:3001';
+
+// --- Hook Genérico para operaciones CRUD ---
+// Este hook manejará el estado y las llamadas a la API para cada entidad
+const useCrud = (endpoint: string) => {
+  const [data, setData] = useState<any[]>([]);
+
+  // 1. OBTENER (READ ALL)
+  const fetchData = async () => {
+    try {
+      const response = await fetch(`${API_URL}/${endpoint}`);
+      if (!response.ok) throw new Error(`Error al cargar ${endpoint}`);
+      const apiData = await response.json();
+      setData(apiData);
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  // 2. CREAR (CREATE)
+  const addItem = async (item: any) => {
+    try {
+      const response = await fetch(`${API_URL}/${endpoint}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Error al crear en ${endpoint}`);
+      }
+      toast.success(`${endpoint} agregado exitosamente`);
+      fetchData(); // Recargar datos
+    } catch (error: any) {
+      toast.error(`Error al crear: ${error.message}`);
+    }
+  };
+
+  // 3. ACTUALIZAR (UPDATE)
+  const updateItem = async (id: string, item: any) => {
+    try {
+      const response = await fetch(`${API_URL}/${endpoint}/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(item),
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Error al actualizar en ${endpoint}`);
+      }
+      toast.success(`${endpoint} actualizado exitosamente`);
+      fetchData(); // Recargar datos
+    } catch (error: any) {
+      toast.error(`Error al actualizar: ${error.message}`);
+    }
+  };
+
+  // 4. ELIMINAR (DELETE)
+  const deleteItem = async (id: string) => {
+    try {
+      const response = await fetch(`${API_URL}/${endpoint}/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || `Error al eliminar en ${endpoint}`);
+      }
+      toast.success(`${endpoint} eliminado exitosamente`);
+      fetchData(); // Recargar datos
+    } catch (error: any) {
+      toast.error(`Error al eliminar: ${error.message}`);
+    }
+  };
+
+  // Cargar datos iniciales
+  useEffect(() => {
+    fetchData();
+  }, [endpoint]); // Se ejecuta cuando el 'endpoint' cambia
+
+  return { data, addItem, updateItem, deleteItem };
+};
+// --- Fin del Hook CRUD ---
+
 
 export default function App() {
   const [currentView, setCurrentView] = useState<AppView>('login');
@@ -22,7 +109,7 @@ export default function App() {
 
   const handleLogin = (email: string, password: string, role: UserRole) => {
     // Mock login - in real app, this would validate against backend
-    const user = usuarios.find(u => u.email === email && u.role === role);
+    const user = usuarios.find((u:any) => u.email === email && u.role === role);
     
     if (user) {
       setCurrentUser(user);
@@ -71,6 +158,130 @@ export default function App() {
     toast.success('Perfil actualizado correctamente');
   };
 
+  // --- Componente de renderizado ---
+  // Usamos un componente interno para poder usar el hook
+  const CrudAutores = () => {
+    const { data: autoresData, addItem, updateItem, deleteItem } = useCrud('autores');
+    return (
+      <CRUDView
+        title="Autores"
+        description="Gestión de autores de libros"
+        data={autoresData}
+        idKey="Id_Autor" // Clave primaria de la tabla
+        columns={[
+          { key: 'Nombre_Autor', label: 'Nombre' },
+          { key: 'Apellido_Autor', label: 'Apellido' },
+        ]}
+        formFields={[
+          { key: 'Nombre_Autor', label: 'Nombre' },
+          { key: 'Apellido_Autor', label: 'Apellido' },
+        ]}
+        onAdd={addItem}
+        onEdit={updateItem}
+        onDelete={deleteItem}
+      />
+    );
+  };
+
+  const CrudEditoriales = () => {
+    const { data: editorialesData, addItem, updateItem, deleteItem } = useCrud('editoriales');
+    return (
+      <CRUDView
+        title="Editoriales"
+        description="Gestión de editoriales"
+        data={editorialesData}
+        idKey="Id_Editorial"
+        columns={[
+          { key: 'Nombre_Editorial', label: 'Nombre' },
+        ]}
+        formFields={[
+          { key: 'Nombre_Editorial', label: 'Nombre' },
+        ]}
+        onAdd={addItem}
+        onEdit={updateItem}
+        onDelete={deleteItem}
+      />
+    );
+  };
+
+  const CrudCategorias = () => {
+    const { data: categoriasData, addItem, updateItem, deleteItem } = useCrud('categorias');
+    return (
+      <CRUDView
+        title="Categorías"
+        description="Gestión de categorías de libros"
+        data={categoriasData}
+        idKey="Id_Categoria"
+        columns={[
+          { key: 'Nombre_Categoria', label: 'Nombre' },
+        ]}
+        formFields={[
+          { key: 'Nombre_Categoria', label: 'Nombre' },
+        ]}
+        onAdd={addItem}
+        onEdit={updateItem}
+        onDelete={deleteItem}
+      />
+    );
+  };
+
+  const CrudGeneros = () => {
+    const { data: generosData, addItem, updateItem, deleteItem } = useCrud('generos');
+    return (
+      <CRUDView
+        title="Géneros"
+        description="Gestión de géneros literarios"
+        data={generosData}
+        idKey="Id_Genero"
+        columns={[
+          { key: 'Nombre_Genero', label: 'Nombre' },
+        ]}
+        formFields={[
+          { key: 'Nombre_Genero', label: 'Nombre' },
+        ]}
+        onAdd={addItem}
+        onEdit={updateItem}
+        onDelete={deleteItem}
+      />
+    );
+  };
+
+  const CrudUsuarios = () => {
+    const { data: usuariosData, addItem, updateItem, deleteItem } = useCrud('usuarios');
+    return (
+      <CRUDView
+        title="Usuarios"
+        description="Gestión de usuarios del sistema"
+        data={usuariosData} // La API ya filtra (si es necesario), o puedes filtrar aquí
+        idKey="Id_Usuario"
+        columns={[
+          { key: 'Prim_Nom_Usuario', label: 'Nombre' },
+          { key: 'Prim_Apelli_Usuario', label: 'Apellido' },
+          { key: 'Correo_Usuario', label: 'Email' },
+          { key: 'Tel_Usuario', label: 'Teléfono' },
+          { key: 'Doc_Usuario', label: 'Documento' },
+        ]}
+        formFields={[
+          { key: 'Prim_Nom_Usuario', label: 'Primer Nombre' },
+          { key: 'Seg_Nom_Usuario', label: 'Segundo Nombre' },
+          { key: 'Prim_Apelli_Usuario', label: 'Primer Apellido' },
+          { key: 'Seg_Apelli_Usuario', label: 'Segundo Apellido' },
+          { key: 'Id_Tipo_Doc_Usuario', label: 'ID Tipo Documento' },
+          { key: 'Doc_Usuario', label: 'Documento' },
+          { key: 'Direc_Usuario', label: 'Dirección' },
+          { key: 'Tel_Usuario', label: 'Teléfono', type: 'tel' },
+          { key: 'Correo_Usuario', label: 'Email', type: 'email' },
+          { key: 'Fecha_Nac_Usuario', label: 'Fecha Nacimiento', type: 'date' },
+          { key: 'Fecha_Reg_Usuario', label: 'Fecha Registro', type: 'date' },
+        ]}
+        onAdd={addItem}
+        onEdit={updateItem}
+        onDelete={deleteItem}
+      />
+    );
+  };
+
+
   const renderDashboardContent = () => {
     if (!currentUser) return null;
 
@@ -87,110 +298,19 @@ export default function App() {
         return <PrestamosView role={currentUser.role} userId={currentUser.id} />;
       
       case 'autores':
-        return currentUser.role === 'bibliotecario' ? (
-          <CRUDView
-            title="Autores"
-            description="Gestión de autores de libros"
-            data={autores}
-            columns={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'nacionalidad', label: 'Nacionalidad' },
-              { key: 'fecha_nacimiento', label: 'Fecha de Nacimiento' },
-            ]}
-            formFields={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'nacionalidad', label: 'Nacionalidad' },
-              { key: 'fecha_nacimiento', label: 'Fecha de Nacimiento', type: 'date' },
-            ]}
-            onAdd={(data) => toast.success('Autor agregado')}
-            onEdit={(id, data) => toast.success('Autor actualizado')}
-            onDelete={(id) => toast.success('Autor eliminado')}
-          />
-        ) : null;
+        return currentUser.role === 'bibliotecario' ? <CrudAutores /> : null;
       
       case 'editoriales':
-        return currentUser.role === 'bibliotecario' ? (
-          <CRUDView
-            title="Editoriales"
-            description="Gestión de editoriales"
-            data={editoriales}
-            columns={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'pais', label: 'País' },
-            ]}
-            formFields={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'pais', label: 'País' },
-            ]}
-            onAdd={(data) => toast.success('Editorial agregada')}
-            onEdit={(id, data) => toast.success('Editorial actualizada')}
-            onDelete={(id) => toast.success('Editorial eliminada')}
-          />
-        ) : null;
+        return currentUser.role === 'bibliotecario' ? <CrudEditoriales /> : null;
       
       case 'categorias':
-        return currentUser.role === 'bibliotecario' ? (
-          <CRUDView
-            title="Categorías"
-            description="Gestión de categorías de libros"
-            data={categorias}
-            columns={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'descripcion', label: 'Descripción' },
-            ]}
-            formFields={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'descripcion', label: 'Descripción' },
-            ]}
-            onAdd={(data) => toast.success('Categoría agregada')}
-            onEdit={(id, data) => toast.success('Categoría actualizada')}
-            onDelete={(id) => toast.success('Categoría eliminada')}
-          />
-        ) : null;
+        return currentUser.role === 'bibliotecario' ? <CrudCategorias /> : null;
       
       case 'generos':
-        return currentUser.role === 'bibliotecario' ? (
-          <CRUDView
-            title="Géneros"
-            description="Gestión de géneros literarios"
-            data={generos}
-            columns={[
-              { key: 'nombre', label: 'Nombre' },
-            ]}
-            formFields={[
-              { key: 'nombre', label: 'Nombre' },
-            ]}
-            onAdd={(data) => toast.success('Género agregado')}
-            onEdit={(id, data) => toast.success('Género actualizado')}
-            onDelete={(id) => toast.success('Género eliminado')}
-          />
-        ) : null;
+        return currentUser.role === 'bibliotecario' ? <CrudGeneros /> : null;
       
       case 'usuarios':
-        return currentUser.role === 'bibliotecario' ? (
-          <CRUDView
-            title="Usuarios"
-            description="Gestión de usuarios del sistema"
-            data={usuarios.filter(u => u.role === 'usuario')}
-            columns={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'email', label: 'Email' },
-              { key: 'telefono', label: 'Teléfono' },
-              { key: 'numero_documento', label: 'Documento' },
-            ]}
-            formFields={[
-              { key: 'nombre', label: 'Nombre' },
-              { key: 'email', label: 'Email', type: 'email' },
-              { key: 'telefono', label: 'Teléfono', type: 'tel' },
-              { key: 'direccion', label: 'Dirección' },
-              { key: 'tipo_documento', label: 'Tipo de Documento' },
-              { key: 'numero_documento', label: 'Número de Documento' },
-            ]}
-            onAdd={(data) => toast.success('Usuario agregado')}
-            onEdit={(id, data) => toast.success('Usuario actualizado')}
-            onDelete={(id) => toast.success('Usuario eliminado')}
-          />
-        ) : null;
+        return currentUser.role === 'bibliotecario' ? <CrudUsuarios /> : null;
       
       case 'consultas':
         return currentUser.role === 'bibliotecario' ? <ConsultasView /> : null;
