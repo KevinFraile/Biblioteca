@@ -2,13 +2,15 @@
 
 import * as React from "react";
 
-import { cn } from "./utils";
+// Asumo que 'cn' viene de una ruta estándar como '@/lib/utils'
+import { cn } from "./utils"; // Asumo que tienes este helper
 
 function Table({ className, ...props }: React.ComponentProps<"table">) {
   return (
     <div
       data-slot="table-container"
-      className="relative w-full overflow-x-auto"
+      // CAMBIO: Borde naranja
+      className="relative w-full overflow-x-auto rounded-lg border border-orange-200/75 dark:border-orange-800/50"
     >
       <table
         data-slot="table"
@@ -23,7 +25,8 @@ function TableHeader({ className, ...props }: React.ComponentProps<"thead">) {
   return (
     <thead
       data-slot="table-header"
-      className={cn("[&_tr]:border-b", className)}
+      // CAMBIO: Fondo naranja pálido (light) y oscuro (dark)
+      className={cn("bg-orange-100 dark:bg-orange-900", className)}
       {...props}
     />
   );
@@ -33,7 +36,11 @@ function TableBody({ className, ...props }: React.ComponentProps<"tbody">) {
   return (
     <tbody
       data-slot="table-body"
-      className={cn("[&_tr:last-child]:border-0", className)}
+      // CAMBIO: Divisores de fila naranjas
+      className={cn(
+        "divide-y divide-orange-200 dark:divide-orange-800",
+        className,
+      )}
       {...props}
     />
   );
@@ -43,8 +50,9 @@ function TableFooter({ className, ...props }: React.ComponentProps<"tfoot">) {
   return (
     <tfoot
       data-slot="table-footer"
+      // CAMBIO: Borde y fondo naranja
       className={cn(
-        "bg-muted/50 border-t font-medium [&>tr]:last:border-b-0",
+        "border-t border-orange-200 bg-orange-100/50 dark:border-orange-800 dark:bg-orange-900/50 font-medium",
         className,
       )}
       {...props}
@@ -56,8 +64,9 @@ function TableRow({ className, ...props }: React.ComponentProps<"tr">) {
   return (
     <tr
       data-slot="table-row"
+      // CAMBIO: Hover y selección en tonos naranja
       className={cn(
-        "hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors",
+        "hover:bg-orange-50 dark:hover:bg-orange-950/50 data-[state=selected]:bg-orange-100 dark:data-[state=selected]:bg-orange-900 transition-colors",
         className,
       )}
       {...props}
@@ -69,8 +78,9 @@ function TableHead({ className, ...props }: React.ComponentProps<"th">) {
   return (
     <th
       data-slot="table-head"
+      // CAMBIO: Texto del encabezado en naranja oscuro (light) y claro (dark)
       className={cn(
-        "text-foreground h-10 px-2 text-left align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "h-12 px-4 text-left align-middle font-semibold text-orange-900 dark:text-orange-300 whitespace-nowrap [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -82,8 +92,9 @@ function TableCell({ className, ...props }: React.ComponentProps<"td">) {
   return (
     <td
       data-slot="table-cell"
+      // NOTA: Mantenemos el texto principal oscuro/claro para legibilidad
       className={cn(
-        "p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:pr-0 [&>[role=checkbox]]:translate-y-[2px]",
+        "p-4 align-middle whitespace-nowrap text-gray-800 dark:text-gray-100 [&:has([role=checkbox])]:pr-0",
         className,
       )}
       {...props}
@@ -98,7 +109,8 @@ function TableCaption({
   return (
     <caption
       data-slot="table-caption"
-      className={cn("text-muted-foreground mt-4 text-sm", className)}
+      // CAMBIO: Texto de la leyenda en naranja
+      className={cn("mt-4 text-sm text-orange-600 dark:text-orange-400", className)}
       {...props}
     />
   );

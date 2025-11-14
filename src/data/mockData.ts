@@ -105,13 +105,13 @@ export const usuarios: User[] = [
   },
   {
     id: '2',
-    nombre: 'María García',
-    email: 'maria.garcia@email.com',
+    nombre: 'Kevin Andres Fraile Camacho',
+    email: 'kevinfc801@gmail.com',
     telefono: '+34 623 456 789',
     direccion: 'Avenida Central 456, Barcelona',
     tipo_documento: 'DNI',
     numero_documento: '23456789B',
-    role: 'usuario',
+    role: 'bibliotecario',
   },
   {
     id: '3',

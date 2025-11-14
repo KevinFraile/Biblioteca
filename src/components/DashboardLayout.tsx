@@ -1,20 +1,32 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState } from 'react'; // <-- Importar useState
 import { Button } from './ui/button';
 import { 
   Home, 
   BookOpen, 
   FileText, 
   Users, 
-  Search, 
   User, 
   LogOut,
-  Menu,
-  X,
-  BarChart3
 } from 'lucide-react';
 import { UserRole } from '../types';
 
+import { 
+  Tooltip, 
+  TooltipContent, 
+  TooltipProvider, 
+  TooltipTrigger 
+} from './ui/tooltip';
+import { 
+  DropdownMenu, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuLabel, 
+  DropdownMenuSeparator, 
+  DropdownMenuTrigger 
+} from './ui/dropdown-menu';
+
 interface DashboardLayoutProps {
+  // ... (props sin cambios)
   children: ReactNode;
   role: UserRole;
   currentView: string;
@@ -31,14 +43,16 @@ export function DashboardLayout({
   onLogout,
   userName 
 }: DashboardLayoutProps) {
-  const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // --- NUEVO ESTADO PARA CONTROLAR EL HOVER ---
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // ... (definición de menuItems y userMenuItems sin cambios)
   const menuItems = role === 'usuario' 
     ? [
         { id: 'inicio', label: 'Inicio', icon: Home },
         { id: 'libros', label: 'Libros', icon: BookOpen },
         { id: 'prestamos', label: 'Mis Préstamos', icon: FileText },
-        { id: 'perfil', label: 'Perfil', icon: User },
       ]
     : [
         { id: 'inicio', label: 'Inicio', icon: Home },
@@ -49,94 +63,123 @@ export function DashboardLayout({
         { id: 'generos', label: 'Géneros', icon: FileText },
         { id: 'usuarios', label: 'Usuarios', icon: Users },
         { id: 'prestamos', label: 'Préstamos', icon: FileText },
-        // { id: 'consultas', label: 'Consultas', icon: BarChart3 },
-        // { id: 'perfil', label: 'Perfil', icon: User },
       ];
 
+  const userMenuItems = [
+    { id: 'perfil', label: 'Mi Perfil', icon: User },
+  ];
+  
+  // Códigos de color
+  const colorActivo = '#EA580C'; // Naranja 600
+  const colorHover = '#FFEDD5'; // Naranja 100 (para el fondo)
+  const textoHover = '#C2410C'; // Naranja 700 (para el texto)
+  const textoInactivo = '#4B5563'; // Gray 600
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSidebarOpen(!sidebarOpen)}
-              className="lg:hidden"
-            >
-              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-            </Button>
+    <TooltipProvider delayDuration={0}>
+      <div className="min-h-screen bg-gray-50">
+        
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-20 shadow-sm">
+          <div className="flex items-center justify-between px-4 py-2 max-w-7xl mx-auto">
+            
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+              {/* Usamos el style aquí también por si acaso */}
+              <div 
+                className="h-10 w-10 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: colorActivo }}
+              >
                 <BookOpen className="h-6 w-6 text-white" />
               </div>
-              <div>
-                <h1 className="font-semibold">Sistema de Biblioteca</h1>
-                <p className="text-sm text-gray-500">
-                  {role === 'usuario' ? 'Usuario' : 'Bibliotecario'}
-                </p>
-              </div>
+              <h1 className="font-bold text-lg hidden sm:block">Sistema de Biblioteca</h1>
             </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="hidden md:block text-right">
-              <p className="text-sm">{userName}</p>
-              <p className="text-xs text-gray-500">{role === 'usuario' ? 'Lector' : 'Administrador'}</p>
-            </div>
-            <Button variant="ghost" size="icon" onClick={onLogout}>
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
-        </div>
-      </header>
 
-      <div className="flex">
-        {/* Sidebar */}
-        <aside 
-          className={`
-            ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}
-            fixed lg:sticky lg:translate-x-0 top-[57px] left-0 h-[calc(100vh-57px)]
-            w-64 bg-white border-r border-gray-200 transition-transform duration-200 z-20
-          `}
-        >
-          <nav className="p-4 space-y-1">
-            {menuItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = currentView === item.id;
-              return (
-                <Button
-                  key={item.id}
-                  variant={isActive ? 'secondary' : 'ghost'}
-                  className={`w-full justify-start ${isActive ? 'bg-indigo-50 text-indigo-700' : ''}`}
-                  onClick={() => {
-                    onNavigate(item.id);
-                    if (window.innerWidth < 1024) {
-                      setSidebarOpen(false);
+            <nav className="flex-1">
+              <div className="flex items-center justify-center gap-1 overflow-x-auto py-1">
+                {menuItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = currentView === item.id;
+                  const isHovered = hoveredId === item.id;
+
+                  // --- LÓGICA DE ESTILOS EN LÍNEA ---
+                  const getStyle = () => {
+                    if (isActive) {
+                      return { backgroundColor: colorActivo, color: 'white' };
                     }
-                  }}
-                >
-                  <Icon className="h-5 w-5 mr-3" />
-                  {item.label}
-                </Button>
-              );
-            })}
-          </nav>
-        </aside>
+                    if (isHovered) {
+                      return { backgroundColor: colorHover, color: textoHover };
+                    }
+                    return { backgroundColor: 'transparent', color: textoInactivo };
+                  };
 
-        {/* Main Content */}
-        <main className="flex-1 p-4 lg:p-6">
+                  return (
+                    <Tooltip key={item.id}>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant={'ghost'}
+                          size="icon"
+                          className="rounded-lg" // Quitamos todas las clases de color
+                          // --- APLICAMOS ESTILOS Y EVENTOS ---
+                          style={getStyle()}
+                          onMouseEnter={() => setHoveredId(item.id)}
+                          onMouseLeave={() => setHoveredId(null)}
+                          onClick={() => onNavigate(item.id)}
+                        >
+                          <Icon className="h-5 w-5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        <p>{item.label}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            </nav>
+
+            {/* ... (Dropdown menu no cambia) ... */}
+            <div className="flex items-center">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="rounded-full">
+                    <User className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">{userName}</p>
+                      <p className="text-xs leading-none text-gray-500">
+                        {role === 'usuario' ? 'Lector' : 'Administrador'}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  
+                  {role === 'usuario' && userMenuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <DropdownMenuItem key={item.id} onClick={() => onNavigate(item.id)}>
+                        <Icon className="h-4 w-4 mr-2" />
+                        {item.label}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                  {role === 'usuario' && <DropdownMenuSeparator />}
+
+                  <DropdownMenuItem onClick={onLogout} className="text-red-500 focus:text-red-500 focus:bg-red-50">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Cerrar Sesión
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </header>
+
+        <main className="p-6 lg:p-8 max-w-7xl mx-auto">
           {children}
         </main>
       </div>
-
-      {/* Overlay for mobile */}
-      {sidebarOpen && (
-        <div 
-          className="fixed inset-0 bg-black/20 z-10 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-    </div>
+    </TooltipProvider>
   );
 }

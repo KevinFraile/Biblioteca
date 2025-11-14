@@ -20,22 +20,30 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
     onLogin(email, password, 'bibliotecario');
   };
 
+  const backgroundStyles = {
+    backgroundImage: "url('https://estepais.com/wp-content/uploads/2024/04/Proyecto-nuevo-15.png')",
+    backgroundSize: 'cover',
+    backgroundPosition: 'center',
+    backgroundRepeat: 'no-repeat',
+  };
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+    <div 
+      className="min-h-screen flex items-center justify-center p-4"
+      style={backgroundStyles}
+    >
       <Card className="w-full max-w-md">
-        <CardHeader className="text-center space-y-2">
-          <div className="flex justify-center mb-4">
-            <div className="h-16 w-16 bg-indigo-600 rounded-full flex items-center justify-center">
-              <BookOpen className="h-8 w-8 text-white" />
-            </div>
-          </div>
-          <CardTitle className="text-2xl">Sistema de Gestión de Biblioteca</CardTitle>
-          <CardDescription>Acceso para Bibliotecarios</CardDescription>
-        </CardHeader>
+        <br />
         <CardContent>
-          <div className="flex items-center justify-center gap-2 mb-6 text-indigo-600">
+          {/* La clase 'text-indigo-600' se quitó del div padre
+            y se aplicó 'text-orange-600' directamente al span.
+            El ícono (UserCog) heredará el color de texto por defecto.
+          */}
+          <div className="flex items-center justify-center gap-2 mb-6">
             <UserCog className="h-5 w-5" />
-            <span className="font-semibold">Inicio de Sesión - Bibliotecario</span>
+            <span className="font-semibold text-orange-600">
+              Inicio de Sesión - Bibliotecario
+            </span>
           </div>
           
           <form onSubmit={handleLogin} className="space-y-4">
@@ -70,7 +78,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
           <div className="mt-4">
             <p className="text-sm text-muted-foreground text-center">
-              Demo: ana.admin@biblioteca.com / password
+              Demo: kevinfc801@gmail.com / password
             </p>
           </div>
         </CardContent>
